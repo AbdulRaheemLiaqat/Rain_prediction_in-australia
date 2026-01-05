@@ -33,7 +33,7 @@ for col, le in label_encoders.items():
     if col != "RainTomorrow":
         if col == "Date":
             # Use text input for Date
-            date_input = st.text_input("Date (YYYY-MM-DD)", value="2007-01-01")
+            date_input = st.text_input("Date (YYYY-MM-DD)", value="2026-01-01")
             if date_input in le.classes_:
                 inputs[col] = date_input
             else:
