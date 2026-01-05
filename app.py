@@ -1,33 +1,74 @@
 import streamlit as st
-import numpy as np
+import pandas as pd
 import joblib
+import numpy as np
 
-model = joblib.load("random_forest.pkl")
+st.set_page_config(page_title="Weather Rain Prediction", layout="centered")
+st.title("🌧️ Rain Prediction App")
+st.write("Predict whether it will rain tomorrow based on weather conditions")
+
+models = {
+    "Logistic Regression": joblib.load("logistic_regression.pkl"),
+    "Decision Tree": joblib.load("decision_tree.pkl"),
+    "Random Forest": joblib.load("random_forest.pkl")
+}
+
 scaler = joblib.load("scaler.pkl")
+label_encoders = joblib.load("label_encoders.pkl")
 
-st.title("🌧️ Rain Prediction in Australia")
+selected_model_name = st.selectbox("Select Model", list(models.keys()))
+model = models[selected_model_name]
 
-st.write("Enter weather values to predict rain tomorrow")
+feature_order = [
+    "Date", "Location", "MinTemp", "MaxTemp", "Rainfall", "Evaporation",
+    "Sunshine", "WindGustDir", "WindGustSpeed", "WindDir9am",
+    "WindDir3pm", "WindSpeed9am", "WindSpeed3pm", "Humidity9am",
+    "Humidity3pm", "Pressure9am", "Pressure3pm", "Cloud9am",
+    "Cloud3pm", "Temp9am", "Temp3pm", "RainToday"
+]
 
-min_temp = st.number_input("Min Temperature (°C)", value=10.0)
-max_temp = st.number_input("Max Temperature (°C)", value=25.0)
-rainfall = st.number_input("Rainfall (mm)", value=0.0)
-humidity_3pm = st.number_input("Humidity at 3PM (%)", value=50.0)
-pressure_3pm = st.number_input("Pressure at 3PM (hPa)", value=1015.0)
+inputs = {}
+
+for col, le in label_encoders.items():
+    if col != "RainTomorrow":
+        inputs[col] = st.selectbox(col, le.classes_)
+
+numeric_features = [
+    "MinTemp","MaxTemp","Rainfall","Evaporation","Sunshine",
+    "WindGustSpeed","WindSpeed9am","WindSpeed3pm",
+    "Humidity9am","Humidity3pm","Pressure9am","Pressure3pm",
+    "Cloud9am","Cloud3pm","Temp9am","Temp3pm"
+]
+
+for col in numeric_features:
+    inputs[col] = st.number_input(col, value=0.0)
+
+input_df = pd.DataFrame([inputs])
+input_df = input_df.reindex(columns=feature_order)
+
+for col in numeric_features:
+    if col in input_df.columns:
+        input_df[col] = input_df[col].astype(float)
+
+for col, le in label_encoders.items():
+    if col in input_df.columns:
+        input_df[col] = le.transform(input_df[col])
+
+input_scaled = scaler.transform(input_df.values)
 
 if st.button("Predict"):
-    input_data = np.array([
-        [min_temp, max_temp, rainfall, humidity_3pm, pressure_3pm]])
-
-    total_features = scaler.mean_.shape[0]
-    if input_data.shape[1] < total_features:
-        padding = total_features - input_data.shape[1]
-        input_data = np.pad(input_data, ((0, 0), (0, padding)))
-
-    input_scaled = scaler.transform(input_data)
     prediction = model.predict(input_scaled)[0]
+    if hasattr(model, "predict_proba"):
+        prob = model.predict_proba(input_scaled)[0][prediction]
+    else:
+        prob = 1.0
 
     if prediction == 1:
-        st.error("☔ Rain Tomorrow")
+        st.error(f"🌧️ Rain Tomorrow (Confidence: {prob:.2f})")
     else:
-        st.success("☀️ No Rain Tomorrow")
+        st.success(f"☀️ No Rain Tomorrow (Confidence: {prob:.2f})")
+
+st.markdown(
+    "<div style='text-align:center; margin-top:40px;'>Created by Abdul Raheem Liaqat</div>",
+    unsafe_allow_html=True
+)
