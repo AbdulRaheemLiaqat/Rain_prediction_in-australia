@@ -31,7 +31,17 @@ inputs = {}
 
 for col, le in label_encoders.items():
     if col != "RainTomorrow":
-        inputs[col] = st.selectbox(col, le.classes_)
+        if col == "Date":
+            # Use text input for Date
+            date_input = st.text_input("Date (YYYY-MM-DD)", value="2007-01-01")
+            if date_input in le.classes_:
+                inputs[col] = date_input
+            else:
+                # Fallback to first known date
+                inputs[col] = le.classes_[0]
+        else:
+            inputs[col] = st.selectbox(col, le.classes_)
+
 
 numeric_features = [
     "MinTemp","MaxTemp","Rainfall","Evaporation","Sunshine",
@@ -54,6 +64,7 @@ for col, le in label_encoders.items():
     if col in input_df.columns:
         input_df[col] = le.transform(input_df[col])
 
+
 input_scaled = scaler.transform(input_df.values)
 
 if st.button("Predict"):
@@ -72,3 +83,4 @@ st.markdown(
     "<div style='text-align:center; margin-top:40px;'>Created by Abdul Raheem Liaqat</div>",
     unsafe_allow_html=True
 )
+
